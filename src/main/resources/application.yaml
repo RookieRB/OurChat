@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    driverClassName: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/ourchat
+    username: root
+    password: 1234
+  redis:
+    host: localhost
+    port: 6379
+    database: 0
+  mail:
+    username: 1405682733@qq.com
+    password: kqfxmzvxikjlbagi
+    host: smtp.qq.com
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.example.ourchat.entity
+  configuration:
+    map-underscore-to-camel-case: true
+
+ourchat:
+  jwt:
+    # 设置jwt签名加密时使用的密匙
+    user-secret-key: user
+    # 设置jwt过期时间
+    user-ttl: 7200000
+    # 设置前端传递过来的 令牌名称
+    user-token-name: Authorization
+#    user-ttl: 60000
