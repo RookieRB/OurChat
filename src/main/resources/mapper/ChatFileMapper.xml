@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.example.ourchat.mapper.ChatFileMapper">
+
+    <select id="insertChatFileMessage" resultType="com.example.ourchat.entity.ChatFileMessage" >
+        insert into chat_file_messages (message_id,file_id,created_at) values (#{messageId},#{fileId},#{createdAt})
+    </select>
+
+    <select id="getFileIdByMessageId">
+       select file_id from chat_file_messages where message_id = #{messageId}
+    </select>
+
+    <select id="getChatFileByFileId" resultType="com.example.ourchat.entity.ChatFile">
+        select * from chat_files where file_id = #{fileId}
+    </select>
+</mapper>

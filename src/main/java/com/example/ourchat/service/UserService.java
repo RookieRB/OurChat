@@ -1,6 +1,7 @@
 package com.example.ourchat.service;
 
 
+import com.example.ourchat.dto.SearchUserDTO;
 import com.example.ourchat.dto.UserDTO;
 import com.example.ourchat.entity.User;
 import com.example.ourchat.vo.FriendVO;
@@ -26,4 +27,7 @@ public interface UserService {
     List<PrivateMessageVO> getMessageByOtherId(Long userId);
 
     List<String> getOfflineService(Long userId);
+
+
+    String updateUser(User user);
 }

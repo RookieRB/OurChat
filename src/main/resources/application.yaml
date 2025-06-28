@@ -12,6 +12,15 @@ spring:
     username: 1405682733@qq.com
     password: kqfxmzvxikjlbagi
     host: smtp.qq.com
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+
 mybatis:
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: com.example.ourchat.entity
@@ -27,3 +36,8 @@ ourchat:
     # 设置前端传递过来的 令牌名称
     user-token-name: Authorization
 #    user-ttl: 60000
+  file:
+    upload:
+      path: D:/ProjectFiles/IDEA/OurChat/buffer
+    size:
+      threshold: 1048576 # 1MB，小于此大小的文件存储在数据库中

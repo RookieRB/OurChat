@@ -18,7 +18,9 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
         registry.addInterceptor(jwtTokenAdminInterceptor)
                 .addPathPatterns("/user/**")
                 .addPathPatterns("/chat/**")
-                .excludePathPatterns("/user/login/**");
+                .addPathPatterns("/newFriends/**")
+                .excludePathPatterns("/user/login/**")
+                .excludePathPatterns("/auth/refresh"); // 排除token刷新端点
     }
 
 

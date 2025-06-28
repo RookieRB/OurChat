@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.example.ourchat.mapper.NewFriendsMapper">
+    <insert id="addFriendRequest" useGeneratedKeys="true" keyProperty="requestId" parameterType="com.example.ourchat.entity.FriendRequest">
+        insert into friend_requests (sender_id,receiver_id,request_message,status,created_at,updated_at)
+        values
+            (#{senderId},#{receiverId},#{requestMessage},#{status},#{createdAt},#{updatedAt})
+    </insert>
+
+
+    <select id="getCommonFriendsCount" resultType="java.lang.Integer">
+        select count(*) from friends a join friends b on a.friend_id = b.friend_id where a.user_id = #{userId} and b.user_id = #{otherUserId}
+    </select>
+    <select id="getRequestListByIdOnce" resultType="com.example.ourchat.vo.FriendRequestVO">
+        select fr.*,u.nickname as senderName,u.img_url as senderAvatar
+        from friend_requests fr
+        join users u on fr.sender_id = u.user_id
+        where fr.receiver_id = #{receiverId}
+    </select>
+    <select id="getRecommendFriendsWithCommonCount" resultType="com.example.ourchat.entity.RecommendUser">
+        select u.user_id as userId, u.nickname, u.img_url as imgUrl,
+               (select count(*)
+                from friends a
+                         join friends b
+                              on a.friend_id = b.friend_id
+                where a.user_id = #{userId} and b.user_id = u.user_id) as sameFriendsNumber
+        from users u
+        where u.user_id != #{currentUserId}
+          and NOT EXISTS (
+            select 1 from friends
+            where user_id = #{currentUserId} and friend_id = u.user_id
+            )
+            limit 5;
+    </select>
+</mapper>

@@ -32,4 +32,11 @@ public interface UserMapper {
     // 获取双方发送的消息
     List<PrivateMessage> getMessageFromTo(@Param("currentId") Long currentId, @Param("userId") Long userId);
 
+    // 混合模糊搜索用户
+    List<User> searchUsersByKeyword(@Param("keyword") String keyword,
+                                    @Param("currentUserId") Long currentUserId,
+                                    @Param("limit") Integer limit);
+
+    // 更新用户操作
+    Boolean updateUser(User user);
 }

@@ -8,6 +8,7 @@ import com.corundumstudio.socketio.listener.DataListener;
 import com.corundumstudio.socketio.listener.DisconnectListener;
 
 import com.example.ourchat.entity.*;
+import com.example.ourchat.mapper.ChatFileMapper;
 import com.example.ourchat.mapper.RoomMapper;
 import com.example.ourchat.utils.RediusUtil;
 import com.example.ourchat.vo.PrivateMessageVO;
@@ -28,6 +29,9 @@ public class ChatService implements CommandLineRunner{
 
     @Autowired
     private RoomMapper roomMapper;
+
+    @Autowired
+    private ChatFileMapper chatFileMapper;
 
     @Autowired
     private RediusUtil rediusUtil;
@@ -58,6 +62,7 @@ public class ChatService implements CommandLineRunner{
             public void onData(SocketIOClient client, OnlineUser data, AckRequest ackSender) {
                 String sessionId = client.getSessionId().toString();
                 Long userId = data.getOnlineUserId(); // 从客户端获取数据库用户 ID
+
                 sessionToUserIdMap.put(userId, sessionId);
                 onlineUsers.add(sessionId);
 
@@ -88,30 +93,61 @@ public class ChatService implements CommandLineRunner{
             @Override
             public void onData(SocketIOClient socketIOClient, JoinChatInfo data, AckRequest ackRequest) throws Exception {
                 String room = generateRoomName(data.getCurrentUserId(), data.getCurrentChatMemberId());
-                socketIOClient.joinRoom(room);
-                log.info("用户{},加入{}房间",data.getCurrentUserId(), room);
-                // 检查目标用户是否在线
-                Long targetUserId = data.getCurrentChatMemberId();
-                if (sessionToUserIdMap.containsKey(targetUserId) &&
-                        onlineUsers.contains(sessionToUserIdMap.get(targetUserId))) {
-                    log.info("加入房间{},对方{}在线",room,targetUserId);
-                } else {
-                    // 目标用户不在线，通知发起方
-                    Map<String, Object> notification = new HashMap<>();
-                    notification.put("type", "userOffline");
-                    notification.put("userId", targetUserId);
-                    socketIOClient.sendEvent("chatNotification", notification);
+                if(!socketIOClient.getAllRooms().contains(room)){
+                    socketIOClient.joinRoom(room);
+                    log.info("用户{},加入{}房间",data.getCurrentUserId(), room);
+                    // 检查目标用户是否在线
+                    Long targetUserId = data.getCurrentChatMemberId();
+                    if (sessionToUserIdMap.containsKey(targetUserId) &&
+                            onlineUsers.contains(sessionToUserIdMap.get(targetUserId))) {
+                        log.info("加入房间{},对方{}在线",room,targetUserId);
+                    } else {
+                        // 目标用户不在线，通知发起方
+                        Map<String, Object> notification = new HashMap<>();
+                        notification.put("type", "userOffline");
+                        notification.put("userId", targetUserId);
+                        socketIOClient.sendEvent("chatNotification", notification);
+                    }
+                }else{
+                    log.info("用户{}已经在{}房间中，跳过加入", data.getCurrentUserId(), room);
                 }
+
             }
         });
-        socketIOServer.addEventListener("sendPrivateMessage",PrivateMessage.class,new DataListener<PrivateMessage>() {
+        socketIOServer.addEventListener("sendPrivateMessage",PrivateMessageVO.class,new DataListener<PrivateMessageVO>() {
 
             @Override
-            public void onData(SocketIOClient socketIOClient, PrivateMessage data, AckRequest ackRequest) throws Exception {
+            public void onData(SocketIOClient socketIOClient, PrivateMessageVO data, AckRequest ackRequest) throws Exception {
+                // 创建PrivateMessage实体
+                PrivateMessage currentMessage = PrivateMessage.builder()
+                        .senderId(data.getSenderId())
+                        .receiverId(data.getReceiverId())
+                        .content(data.getContent())
+                        .hasFile(data.getHasFile())
+                        .sentAt(data.getSentAt()).build();
+
+
                 // 消息持久化到数据库中
-                roomMapper.insertPrivateMessage(data);
+                roomMapper.insertPrivateMessage(currentMessage);
+
+
                 // 采用了自增，可以自动获取messageID
-                Long messageId = data.getMessageId();
+                Long messageId = currentMessage.getMessageId();
+
+                // 判断该消息中是否含有文件，如果有文件，那么关联当前messageId和文件ID
+                String[] fileIdList = data.getFileIdList();
+                if(data.getHasFile() && messageId != null){
+                    // 循环fileIdList,将文件名与messageId关联起来
+                    for(String fileId : fileIdList){
+                        ChatFileMessage currentChatFileMessage = new ChatFileMessage();
+                        currentChatFileMessage.setFileId(fileId);
+                        currentChatFileMessage.setMessageId(messageId);
+                        currentChatFileMessage.setCreatedAt(new Date());
+                        chatFileMapper.insertChatFileMessage(currentChatFileMessage);
+                    }
+                }
+
+
                 // 获取接收方ID并验证
                 Long receiverId = data.getReceiverId();
                 Long senderId = data.getSenderId();
@@ -123,10 +159,19 @@ public class ChatService implements CommandLineRunner{
                 privateMessageVO.setMessageId(messageId);
                 privateMessageVO.setReceiverId(receiverId);
                 privateMessageVO.setSenderId(senderId);
+
                 privateMessageVO.setContent(data.getContent());
-                privateMessageVO.setType("message");
+                privateMessageVO.setType(data.getType());
                 privateMessageVO.setSentAt(sentAt);
 
+                // 文件相关
+                privateMessageVO.setHasFile(data.getHasFile());
+                privateMessageVO.setFileIdList(fileIdList);
+                privateMessageVO.setFileSize(data.getFileSize());
+                privateMessageVO.setFileType(data.getFileType());
+                privateMessageVO.setOriginalNameList(data.getOriginalNameList());
+
+                log.info("currentPrivateMessageVO:{}",privateMessageVO);
                 if(onlineUsers.contains(sessionToUserIdMap.get(receiverId))){
                     // 对方在线
                     String room = generateRoomName(senderId, receiverId);
@@ -176,7 +221,8 @@ public class ChatService implements CommandLineRunner{
                     CallData data = new CallData();
                     data.setCallerId(callUserId);
                     data.setTargetUserId(targetUserId);
-                    log.info("接收到用户{}的来电,发送给用户{}",callUserId,targetUserId);
+                    data.setCallType(callData.getCallType());
+                    log.info("接收到用户{}的来电,发送给用户{},通话类型是{}",callUserId,targetUserId,callData.getCallType());
                     targetClient.sendEvent("incomingCall",data);
 
                 }else{
@@ -226,6 +272,38 @@ public class ChatService implements CommandLineRunner{
                 }
             }
         });
+        // 挂断电话
+        socketIOServer.addEventListener("hangUp", HangUp.class, new DataListener<HangUp>() {
+
+            @Override
+            public void onData(SocketIOClient socketIOClient, HangUp data, AckRequest ackRequest) throws Exception {
+                Long hangUpUserId = socketIOClient.get("userId");
+                Long targetUserId = data.getTargetUserId();
+
+                log.info("用户{}挂断了与用户{}的通话", hangUpUserId, targetUserId);
+
+                // 获取目标用户的客户端
+                SocketIOClient targetClient = userSocketMap.get(targetUserId);
+
+                // 检查目标用户是否在线
+                if (targetClient != null && onlineUsers.contains(sessionToUserIdMap.get(targetUserId))) {
+                    // 创建挂断电话的数据对象
+                    // 向目标用户发送挂断电话的事件
+                    targetClient.sendEvent("callEnded", data);
+                    log.info("已通知用户{}：用户{}已挂断通话", targetUserId, hangUpUserId);
+                } else {
+                    log.info("目标用户{}不在线，无需发送挂断通知", targetUserId);
+                }
+
+                // 如果需要，可以在这里添加通话记录的保存逻辑
+
+                // 通过 ackRequest 返回确认给客户端
+                if (ackRequest.isAckRequested()) {
+                    ackRequest.sendAckData("通话已结束");
+                }
+            }
+        });
+
         // 转发 WebRTC 信令消息（如 offer、answer、ICE candidate）。
         socketIOServer.addEventListener("signaling",SignalingData.class,new DataListener<SignalingData>() {
 

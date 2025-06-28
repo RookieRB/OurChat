@@ -6,30 +6,18 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.Date;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class UserLoginVO {
-    // 用户id
+public class UserAddVO {
     private Long userId;
-    // 用户名
     private String username;
-    // 昵称
     private String nickname;
-    // 邮箱
     private String email;
-    // 手机号
     private String phone;
-    // 用户头像
-    private String imgUrl;
-    // jwt令牌
-    private String token;
-    // refresh令牌
-    private String refreshToken;
-    // 最后一次登录
-    private Date lastLogin;
-    // 当前用户状态
     private int isActive;
+    private String imgUrl;
+    private Date lastLogin;
+    private boolean isAlreadyFriend;
 }

@@ -26,7 +26,7 @@ public class SocketIOConfig {
     @Bean
     public SocketIOServer socketIOServer() {
         Configuration config = new Configuration();
-        config.setHostname("0.0.0.0");
+        config.setHostname("192.168.1.65");
         config.setPort(9092);
         config.setOrigin("*");
         config.setPingInterval(60000);

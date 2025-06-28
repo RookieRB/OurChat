@@ -49,21 +49,28 @@ public class UserLoginController {
         // 登录成功后，生成jwt令牌
         Map<String,Object> claims = new HashMap<>();
         claims.put(JWtClaimsConstant.USER_ID,currentUser.getUserId());
-        String token = JwtUtil.createJWT(
+        String accessToken = JwtUtil.createJWT(
                 jwtProperties.getUserSecretKey(),
                 jwtProperties.getUserTtl(),
                 claims
         );
-        
+        // 生成刷新token（有效期更长）
+        String refreshToken = JwtUtil.createRefreshJWT(
+                jwtProperties.getUserSecretKey(),
+                jwtProperties.getUserTtl() * 7, // 7倍于访问token的有效期
+                claims
+        );
         UserLoginVO userLoginVO = UserLoginVO.builder()
                 .userId(currentUser.getUserId())
                 .username(currentUser.getUsername())
                 .nickname(currentUser.getNickname())
                 .imgUrl(currentUser.getImgUrl())
                 .email(currentUser.getEmail())
-                .token(token)
+                .token(accessToken)
+                .refreshToken(refreshToken)
                 .phone(currentUser.getPhone())
                 .lastLogin(currentUser.getLastLogin())
+                .phone(currentUser.getPhone())
                 .isActive(2)
                 .build();
 
@@ -126,29 +133,4 @@ public class UserLoginController {
         return Result.error(MessageConstant.CODE_ERROR);
     }
 
-    // 刷新token
-    @GetMapping("/refreshToken")
-    public Result<String> refreshToken(HttpServletRequest request){
-        // 从请求头中获取当前token
-        String token = request.getHeader(jwtProperties.getUserTokenName());
-
-        if(token != null && JwtUtil.validateTokenForRefresh(jwtProperties.getUserSecretKey(), token)){
-            // 从token中获取用户信息
-            Long userId = JwtUtil.getUserIdFromToken(jwtProperties.getUserSecretKey(), token);
-            User currentUser = userService.getUserById(userId);
-            if(currentUser != null){
-                // 生成新的token
-                Map<String,Object> claims = new HashMap<>();
-                claims.put(JWtClaimsConstant.USER_ID,currentUser.getUserId());
-                String newToken = JwtUtil.createJWT(
-                        jwtProperties.getUserSecretKey(),
-                        jwtProperties.getUserTtl(),
-                        claims
-                );
-                log.info("Refresh token : {}",newToken);
-                return Result.success(newToken);
-            }
-        }
-        return Result.error(MessageConstant.TOKEN_REFRESH_ERROR);
-    }
 }

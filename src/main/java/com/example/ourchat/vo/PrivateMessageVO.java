@@ -16,5 +16,10 @@ public class PrivateMessageVO {
     private Long receiverId;
     private String content;
     private Date sentAt;
+    private Boolean hasFile;
+    private String[] originalNameList;
+    private String[] fileIdList;
+    private String[] fileType;
+    private Long[] fileSize;
     private String type;
 }

@@ -16,6 +16,8 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -34,7 +36,7 @@ public class JWTTokenAdminInterceptor implements HandlerInterceptor {
 
         // 获取请求头当中的token
         String token = request.getHeader(jwtProperties.getUserTokenName());
-
+        log.info("当前token{}",token);
         // 校验token
         try{
 
@@ -47,7 +49,29 @@ public class JWTTokenAdminInterceptor implements HandlerInterceptor {
                 throw new LoginInfoExpireException(MessageConstant.LOGIN_INFO_EXPIRE);
             }
 
+            // 检查token是否即将过期，如果是则生成新token
+            if(JwtUtil.isTokenNearExpiry(jwtProperties.getUserSecretKey(), token)) {
+                log.info("Token即将过期，为用户{}生成新token", userId);
+
+                // 生成新的访问token
+                Map<String, Object> newClaims = new HashMap<>();
+                newClaims.put(JWtClaimsConstant.USER_ID, userId);
+
+                String newAccessToken = JwtUtil.createJWT(
+                        jwtProperties.getUserSecretKey(),
+                        jwtProperties.getUserTtl(),
+                        newClaims
+                );
+
+                // 在响应头中返回新token
+                response.setHeader("New-Access-Token", newAccessToken);
+                response.setHeader("Token-Refreshed", "true");
+
+                log.info("新token已生成并添加到响应头中");
+            }
+
             BaseContext.setCurrentId(userId);
+            log.info("验证成功，当前用户{}",userId);
             return  true;
         }catch (Exception e){
             response.setStatus(401);

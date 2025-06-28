@@ -2,6 +2,7 @@ package com.example.ourchat.utils;
 
 
 
+import com.example.ourchat.constant.JWtClaimsConstant;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
@@ -33,6 +34,7 @@ public class JwtUtil {
         JwtBuilder builder = Jwts.builder()
                 // 如果有私有声明，一定要先设置这个自己创建的私有的声明，这个是给builder的claim赋值，一旦写在标准的声明赋值之后，就是覆盖了那些标准的声明的
                 .setClaims(claims)
+                .setSubject("access")
                 // 设置签名使用的签名算法和签名使用的秘钥
                 .signWith(signatureAlgorithm, secretKey.getBytes(StandardCharsets.UTF_8))
                 // 设置过期时间
@@ -86,6 +88,60 @@ public class JwtUtil {
     public static Long getUserIdFromToken(String secretKey,String token) {
         Claims claims = Jwts.parser().setSigningKey(secretKey).parseClaimsJws(token).getBody();
         return Long.parseLong(claims.getSubject());
+    }
+
+    /**
+     * 创建刷新token
+     */
+    public static String createRefreshJWT(String secretKey, long ttlMillis, Map<String, Object> claims) {
+        SignatureAlgorithm signatureAlgorithm = SignatureAlgorithm.HS256;
+        long expMillis = System.currentTimeMillis() + ttlMillis;
+        Date exp = new Date(expMillis);
+
+        JwtBuilder builder = Jwts.builder()
+                .setClaims(claims)
+                .setSubject("refresh")
+                .signWith(signatureAlgorithm, secretKey.getBytes(StandardCharsets.UTF_8))
+                .setExpiration(exp);
+
+        return builder.compact();
+    }
+    /**
+     * 检查token是否即将过期（30分钟内）
+     */
+    public static boolean isTokenNearExpiry(String secretKey, String token) {
+        try {
+            Claims claims = parseJWT(secretKey, token);
+            Date expiration = claims.getExpiration();
+            Date now = new Date();
+            long diff = expiration.getTime() - now.getTime();
+            // 如果剩余时间少于30分钟，认为即将过期
+            return diff < (30 * 60 * 1000);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * 从token中获取用户ID（改进版本）
+     */
+    public static Long getUserIdFromClaims(Claims claims) {
+        return Long.valueOf(claims.get(JWtClaimsConstant.USER_ID).toString());
+    }
+
+
+
+    /**
+     * 验证refresh token
+     */
+    public static boolean validateRefreshToken(String secretKey, String refreshToken) {
+        try {
+            Claims claims = parseJWT(secretKey, refreshToken);
+            return "refresh".equals(claims.getSubject()) &&
+                    claims.getExpiration().after(new Date());
+        } catch (Exception e) {
+            return false;
+        }
     }
 
 }

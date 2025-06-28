@@ -3,10 +3,24 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.example.ourchat.mapper.UserMapper">
 
-    <insert id="insertUser" useGeneratedKeys="true" keyProperty="user_id" parameterType="com.example.ourchat.entity.User">
+    <insert id="insertUser" useGeneratedKeys="true" keyProperty="userId" parameterType="com.example.ourchat.entity.User">
         insert into users (username,nickname,password,email,is_active,img_url)
         VALUES (#{username},#{nickname},#{password},#{email},#{isActive},#{imgUrl})
     </insert>
+    <update id="updateUser" parameterType="com.example.ourchat.entity.User">
+        update users
+        <set>
+            <if test="username != null">username = #{username},</if>
+            <if test="nickname != null">nickname = #{nickname},</if>
+            <if test="password != null"> password = #{password},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="isActive != null">is_active = #{isActive},</if>
+            <if test="imgUrl != null">img_url = #{imgUrl},</if>
+            <if test="lastLogin != null">last_login = #{lastLogin},</if>
+            <if test="phone != null">phone = #{phone},</if>
+        </set>
+        where user_id = #{userId}
+    </update>
     <select id="getFriendsById" resultType="com.example.ourchat.vo.FriendVO">
         select u.user_id,u.nickname,u.img_url,u.is_active,u.last_login,u.email,u.phone
         from users as u
@@ -19,5 +33,16 @@
     </select>
     <select id="getMessageFromTo" resultType="com.example.ourchat.entity.PrivateMessage">
         SELECT * from private_messages as p where (p.sender_id = #{currentId} and p.receiver_id = #{userId}) or  (p.sender_id = #{userId} and p.receiver_id = #{currentId}) order by p.sent_at desc LIMIT 5
+    </select>
+    <select id="searchUsersByKeyword" resultType="com.example.ourchat.entity.User">
+        select * from users
+        where (user_id = #{keyword,jdbcType=BIGINT} or
+               username like concat('%',#{keyword},'%') or
+               email like concat('%',#{keyword},'%') or
+               nickname like concat('%',#{keyword},'%'))
+        and user_id != #{currentUserId}
+        <if test="limit != null and limit > 0">
+            limit #{limit}
+        </if>
     </select>
 </mapper>
